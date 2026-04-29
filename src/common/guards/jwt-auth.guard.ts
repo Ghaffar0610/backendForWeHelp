@@ -5,13 +5,22 @@ import * as jwt from 'jsonwebtoken';
 export class JwtAuthGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
         const request = context.switchToHttp().getRequest();
-        const authHeader = request.headers?.authorization;
+        const authHeader =
+            request.headers?.authorization ??
+            request.headers?.Authorization ??
+            request.headers?.['x-access-token'];
+
+        console.log('[AUTH] incoming headers keys:', Object.keys(request.headers ?? {}));
+        console.log('[AUTH] authorization present:', !!request.headers?.authorization);
+        console.log('[AUTH] x-access-token present:', !!request.headers?.['x-access-token']);
 
         if (!authHeader) {
             throw new UnauthorizedException('Authorization header required');
         }
 
-        const token = authHeader.replace(/^Bearer\s+/i, '');
+        const token = authHeader.toString().replace(/^Bearer\s+/i, '');
+
+        console.log('[AUTH] token prefix:', token.slice(0, 16));
 
         try {
             const payload = jwt.verify(
