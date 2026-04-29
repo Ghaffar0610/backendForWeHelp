@@ -10,10 +10,6 @@ export class JwtAuthGuard implements CanActivate {
             request.headers?.Authorization ??
             request.headers?.['x-access-token'];
 
-        console.log('[AUTH] incoming headers keys:', Object.keys(request.headers ?? {}));
-        console.log('[AUTH] authorization present:', !!request.headers?.authorization);
-        console.log('[AUTH] x-access-token present:', !!request.headers?.['x-access-token']);
-
         if (!authHeader) {
             throw new UnauthorizedException('Authorization header required');
         }
@@ -29,9 +25,6 @@ export class JwtAuthGuard implements CanActivate {
         const token = (extractedJwt ??
             rawHeader.replace(/^Bearer\s+/i, '')).trim().replace(/^"+|"+$/g, '');
 
-        console.log('[AUTH] raw header prefix:', rawHeader.slice(0, 40));
-        console.log('[AUTH] token prefix:', token.slice(0, 16));
-
         try {
             const payload = jwt.verify(
                 token,
@@ -39,8 +32,7 @@ export class JwtAuthGuard implements CanActivate {
             );
             request.user = payload;
             return true;
-        } catch (error: any) {
-            console.error('[AUTH] JWT verification failed:', error?.message ?? error);
+        } catch {
             throw new UnauthorizedException('Invalid or expired token');
         }
     }
