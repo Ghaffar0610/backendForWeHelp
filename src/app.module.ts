@@ -11,8 +11,10 @@ import { HelpRequestsModule } from './help-requests/help-requests.module';
 import { UserModule } from './user/user.module';
 import { VolunteerModule } from './volunteer/volunteer.module';
 
+const mongoUri = process.env.MONGODB_URL || process.env.MONGODB_URI;
+
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), UserModule, HelpRequestsModule, AuthenticationModule, VolunteerModule, AdminModule, ChatModule, FirebaseModule, MongooseModule.forRoot(process.env.MONGODB_URL!)],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), UserModule, HelpRequestsModule, AuthenticationModule, VolunteerModule, AdminModule, ChatModule, FirebaseModule, MongooseModule.forRoot(mongoUri!)],
   controllers: [AppController],
   providers: [AppService],
 })
