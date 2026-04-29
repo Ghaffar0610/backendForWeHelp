@@ -26,7 +26,10 @@ export class AuthenticationService implements OnModuleInit {
         const id = user && (user._id ?? user.id ?? user);
         const sub = typeof id === 'string' ? id : id?.toString();
         const payload = { sub: sub, email: user.email, role: user.role ?? 'user' };
-        return this.jwtService.sign(payload);
+        return this.jwtService.sign(payload, {
+            secret: process.env.JWT_SECRET ?? 'dev_secret_key',
+            expiresIn: (process.env.JWT_EXPIRES_IN ?? '1h') as any,
+        });
     }
 
     private async ensureAdminUser() {
