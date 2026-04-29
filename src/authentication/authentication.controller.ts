@@ -1,5 +1,6 @@
-import { BadRequestException, Body, Controller, Get, Headers, Post, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { BadRequestException, Body, Controller, Get, Post, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AuthenticationService } from './authentication.service';
 import { LocationDto } from './dto/location.dto';
 
@@ -52,12 +53,10 @@ export class AuthenticationController {
      * - Ask user for permission to access location (browser prompt).
      * - On success, read latitude/longitude from `navigator.geolocation.getCurrentPosition`.
      * - POST to this endpoint with JSON { latitude, longitude } and header `Authorization: Bearer <token>`.
-     */
+    */
     @Post('location')
-    async updateLocation(@Headers('authorization') auth: string, @Body() body: LocationDto) {
-        if (!auth) throw new BadRequestException('Authorization header required');
-        const token = auth.replace(/^Bearer\s+/i, '');
-        const payload: any = new JwtService({}).verify(token, { secret: process.env.JWT_SECRET ?? 'dev_secret_key' });
+    @UseGuards(JwtAuthGuard)
+    async updateLocation(@CurrentUser() payload: any, @Body() body: LocationDto) {
         const userId = payload.sub;
 
         // body.latitude and body.longitude are guaranteed numbers now

@@ -1,24 +1,16 @@
-import { BadRequestException, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Roles } from '../common/decorators/roles.decorator';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin')
 export class AdminController {
     constructor(
         private readonly adminService: AdminService,
-        private readonly jwtService: JwtService,
     ) { }
-
-    private verifyTokenAndGetPayload(authHeader: string) {
-        if (!authHeader) throw new BadRequestException('Authorization header required');
-        const token = authHeader.replace(/^Bearer\s+/i, '');
-        const payload: any = this.jwtService.verify(token, { secret: process.env.JWT_SECRET ?? 'dev_secret_key' });
-        return payload;
-    }
-
-    private ensureAdmin(payload: any) {
-        if (payload.role !== 'admin') throw new BadRequestException('Admin credentials required');
-    }
 
     /**
      * GET /admin/volunteer-applications
@@ -27,12 +19,8 @@ export class AdminController {
      */
     @Get('volunteer-applications')
     async getApplications(
-        @Headers('authorization') auth: string,
         @Query('status') status?: string,
     ) {
-        const payload = this.verifyTokenAndGetPayload(auth);
-        this.ensureAdmin(payload);
-
         let applications;
         if (status) {
             applications = await this.adminService.getAllApplications(status);
@@ -53,12 +41,8 @@ export class AdminController {
      */
     @Get('volunteer-applications/:id')
     async getApplicationById(
-        @Headers('authorization') auth: string,
         @Param('id') id: string,
     ) {
-        const payload = this.verifyTokenAndGetPayload(auth);
-        this.ensureAdmin(payload);
-
         const application = await this.adminService.getApplicationById(id);
         return {
             success: true,
@@ -72,12 +56,8 @@ export class AdminController {
      */
     @Post('volunteer-applications/:id/approve')
     async approveApplication(
-        @Headers('authorization') auth: string,
         @Param('id') id: string,
     ) {
-        const payload = this.verifyTokenAndGetPayload(auth);
-        this.ensureAdmin(payload);
-
         const application = await this.adminService.approveApplication(id);
         return {
             success: true,
@@ -92,12 +72,8 @@ export class AdminController {
      */
     @Post('volunteer-applications/:id/reject')
     async rejectApplication(
-        @Headers('authorization') auth: string,
         @Param('id') id: string,
     ) {
-        const payload = this.verifyTokenAndGetPayload(auth);
-        this.ensureAdmin(payload);
-
         const application = await this.adminService.rejectApplication(id);
         return {
             success: true,

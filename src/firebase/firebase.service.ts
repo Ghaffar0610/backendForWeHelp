@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import * as admin from 'firebase-admin';
+import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
 export class FirebaseService {
-    private firebaseApp: admin.app.App;
-    private auth: admin.auth.Auth;
+    private firebaseApp?: admin.app.App;
+    private auth?: admin.auth.Auth;
 
     constructor() {
         // Initialize Firebase Admin SDK
@@ -13,6 +14,11 @@ export class FirebaseService {
         // You can download it from: Firebase Console > Project Settings > Service Accounts > Generate new private key
 
         const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
+
+        if (!fs.existsSync(serviceAccountPath)) {
+            console.warn('Firebase serviceAccountKey.json not found. Firebase auth features are disabled.');
+            return;
+        }
 
         if (!this.firebaseApp) {
             this.firebaseApp = admin.initializeApp({
@@ -29,8 +35,10 @@ export class FirebaseService {
      * @returns Decoded token with user info (uid, email, name, picture)
      */
     async verifyGoogleToken(idToken: string) {
+        this.ensureFirebaseReady();
+
         try {
-            const decodedToken = await this.auth.verifyIdToken(idToken);
+            const decodedToken = await this.auth!.verifyIdToken(idToken);
             return {
                 uid: decodedToken.uid,
                 email: decodedToken.email,
@@ -49,8 +57,10 @@ export class FirebaseService {
      * (Optional: if you want to use Firebase JWT instead of your own)
      */
     async createCustomToken(uid: string) {
+        this.ensureFirebaseReady();
+
         try {
-            return await this.auth.createCustomToken(uid);
+            return await this.auth!.createCustomToken(uid);
         } catch (error) {
             throw new Error(`Failed to create custom token: ${error.message}`);
         }
@@ -60,10 +70,18 @@ export class FirebaseService {
      * Get user info from Firebase
      */
     async getUserInfo(uid: string) {
+        this.ensureFirebaseReady();
+
         try {
-            return await this.auth.getUser(uid);
+            return await this.auth!.getUser(uid);
         } catch (error) {
             throw new Error(`Failed to get user info: ${error.message}`);
+        }
+    }
+
+    private ensureFirebaseReady() {
+        if (!this.auth) {
+            throw new Error('Firebase is not configured. Add serviceAccountKey.json to enable Firebase auth features.');
         }
     }
 }

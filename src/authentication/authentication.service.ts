@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
@@ -6,16 +6,18 @@ import { Model } from 'mongoose';
 import { FirebaseService } from '../firebase/firebase.service';
 import { SignupDocument } from './signup.schema';
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@example.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'adminpass123';
-
 @Injectable()
-export class AuthenticationService {
+export class AuthenticationService implements OnModuleInit {
     constructor(
         @InjectModel('Signup') private signupModel: Model<SignupDocument>,
         private readonly jwtService: JwtService,
         private readonly firebaseService: FirebaseService,
     ) { }
+
+    async onModuleInit() {
+        await this.ensureAdminUser();
+        await this.ensureVolunteerUser();
+    }
 
     private signUserToken(user: any) {
         // Ensure `sub` is always a string (ObjectId may be an object);
@@ -27,14 +29,68 @@ export class AuthenticationService {
         return this.jwtService.sign(payload);
     }
 
-    async create(data: { username: string; email: string; password: string }) {
-        // if creating admin via env credentials, just return token for admin
-        if (data.email === ADMIN_EMAIL && data.password === ADMIN_PASSWORD) {
-            const admin = { _id: 'admin-id', email: ADMIN_EMAIL, username: 'admin', role: 'admin' };
-            const token = this.signUserToken(admin);
-            return { user: admin, access_token: token };
+    private async ensureAdminUser() {
+        const adminEmail = process.env.ADMIN_EMAIL;
+        const adminPassword = process.env.ADMIN_PASSWORD;
+
+        if (!adminEmail || !adminPassword) {
+            return;
         }
 
+        const existing = await this.findByEmail(adminEmail);
+        if (existing) {
+            if (existing.role !== 'admin') {
+                existing.role = 'admin';
+                await existing.save();
+            }
+            return;
+        }
+
+        const hashed = await bcrypt.hash(adminPassword, 10);
+        await this.signupModel.create({
+            username: 'admin',
+            email: adminEmail,
+            password: hashed,
+            role: 'admin',
+        });
+    }
+
+    private async ensureVolunteerUser() {
+        const volunteerEmail = process.env.VOLUNTEER_EMAIL;
+        const volunteerPassword = process.env.VOLUNTEER_PASSWORD;
+        const volunteerUsername = process.env.VOLUNTEER_USERNAME || 'volunteer';
+
+        if (!volunteerEmail || !volunteerPassword) {
+            return;
+        }
+
+        const existing = await this.findByEmail(volunteerEmail);
+        if (existing) {
+            let changed = false;
+            if (existing.role !== 'volunteer') {
+                existing.role = 'volunteer';
+                changed = true;
+            }
+            if (existing.username !== volunteerUsername) {
+                existing.username = volunteerUsername;
+                changed = true;
+            }
+            if (changed) {
+                await existing.save();
+            }
+            return;
+        }
+
+        const hashed = await bcrypt.hash(volunteerPassword, 10);
+        await this.signupModel.create({
+            username: volunteerUsername,
+            email: volunteerEmail,
+            password: hashed,
+            role: 'volunteer',
+        });
+    }
+
+    async create(data: { username: string; email: string; password: string }) {
         const hashed = await bcrypt.hash(data.password, 10);
         const created = new this.signupModel({ ...data, password: hashed, role: 'user' });
         const saved = await created.save();
@@ -51,13 +107,6 @@ export class AuthenticationService {
     }
 
     async validateUser(email: string, password: string) {
-        // admin shortcut
-        if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-            const admin = { _id: 'admin-id', email: ADMIN_EMAIL, username: 'admin', role: 'admin' };
-            const token = this.signUserToken(admin);
-            return { user: admin, access_token: token };
-        }
-
         const user = await this.findByEmail(email);
         if (!user) return null;
         const match = await bcrypt.compare(password, user.password);

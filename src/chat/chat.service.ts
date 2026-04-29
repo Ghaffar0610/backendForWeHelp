@@ -136,7 +136,7 @@ export class ChatService {
         return this.messageModel.findByIdAndDelete(messageId);
     }
 
-    async deleteConversation(userId: string, otherUserId: string) {
+    async deleteConversation(userId: string, otherUserId: string): Promise<{ deletedCount?: number }> {
         // Delete all messages between two users
         const userObjectId = new Types.ObjectId(userId);
         const otherUserObjectId = new Types.ObjectId(otherUserId);

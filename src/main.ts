@@ -5,10 +5,21 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ======= SIMPLE CORS =======
-  // Allow any origin (good for dev)
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map((origin) => origin.trim()).filter(Boolean);
+  const isAllowedOrigin = (origin?: string) => {
+    if (!origin) return true;
+    if (allowedOrigins?.includes(origin)) return true;
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  };
+
   app.enableCors({
-    origin: '*', // <- allow all origins for development
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
     credentials: true,
@@ -17,9 +28,13 @@ async function bootstrap() {
   // Optional: preflight handler (usually not needed if enableCors is used)
   app.use((req: any, res: any, next: any) => {
     if (req.method === 'OPTIONS') {
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      const origin = req.headers.origin ?? '*';
+      if (isAllowedOrigin(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+      }
       res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
       return res.status(204).end();
     }
     next();
