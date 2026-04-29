@@ -18,8 +18,18 @@ export class JwtAuthGuard implements CanActivate {
             throw new UnauthorizedException('Authorization header required');
         }
 
-        const token = authHeader.toString().replace(/^Bearer\s+/i, '');
+        const rawHeader = Array.isArray(authHeader)
+            ? authHeader.join(' ')
+            : authHeader.toString();
 
+        const extractedJwt = rawHeader.match(
+            /([A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+)/,
+        )?.[1];
+
+        const token = (extractedJwt ??
+            rawHeader.replace(/^Bearer\s+/i, '')).trim().replace(/^"+|"+$/g, '');
+
+        console.log('[AUTH] raw header prefix:', rawHeader.slice(0, 40));
         console.log('[AUTH] token prefix:', token.slice(0, 16));
 
         try {
