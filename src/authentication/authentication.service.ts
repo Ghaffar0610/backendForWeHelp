@@ -17,6 +17,7 @@ export class AuthenticationService implements OnModuleInit {
     async onModuleInit() {
         await this.ensureAdminUser();
         await this.ensureVolunteerUser();
+        await this.ensureRequestSeekerUser();
     }
 
     private signUserToken(user: any) {
@@ -33,63 +34,53 @@ export class AuthenticationService implements OnModuleInit {
     }
 
     private async ensureAdminUser() {
-        const adminEmail = process.env.ADMIN_EMAIL;
-        const adminPassword = process.env.ADMIN_PASSWORD;
-
-        if (!adminEmail || !adminPassword) {
-            return;
-        }
-
-        const existing = await this.findByEmail(adminEmail);
-        if (existing) {
-            if (existing.role !== 'admin') {
-                existing.role = 'admin';
-                await existing.save();
-            }
-            return;
-        }
-
-        const hashed = await bcrypt.hash(adminPassword, 10);
-        await this.signupModel.create({
+        await this.ensureSeedUser({
             username: 'admin',
-            email: adminEmail,
-            password: hashed,
+            email: 'admin@example.com',
+            password: 'Admin@123',
             role: 'admin',
         });
     }
 
     private async ensureVolunteerUser() {
-        const volunteerEmail = process.env.VOLUNTEER_EMAIL;
-        const volunteerPassword = process.env.VOLUNTEER_PASSWORD;
-        const volunteerUsername = process.env.VOLUNTEER_USERNAME || 'volunteer';
-
-        if (!volunteerEmail || !volunteerPassword) {
-            return;
-        }
-
-        const existing = await this.findByEmail(volunteerEmail);
-        if (existing) {
-            let changed = false;
-            if (existing.role !== 'volunteer') {
-                existing.role = 'volunteer';
-                changed = true;
-            }
-            if (existing.username !== volunteerUsername) {
-                existing.username = volunteerUsername;
-                changed = true;
-            }
-            if (changed) {
-                await existing.save();
-            }
-            return;
-        }
-
-        const hashed = await bcrypt.hash(volunteerPassword, 10);
-        await this.signupModel.create({
-            username: volunteerUsername,
-            email: volunteerEmail,
-            password: hashed,
+        await this.ensureSeedUser({
+            username: 'volunteer',
+            email: 'volunteer@example.com',
+            password: 'Volunteer@123',
             role: 'volunteer',
+        });
+    }
+
+    private async ensureRequestSeekerUser() {
+        await this.ensureSeedUser({
+            username: 'requestee',
+            email: 'req@gmail.com',
+            password: 'Request@123',
+            role: 'user',
+        });
+    }
+
+    private async ensureSeedUser(seed: {
+        username: string;
+        email: string;
+        password: string;
+        role: string;
+    }) {
+        const hashed = await bcrypt.hash(seed.password, 10);
+        const existing = await this.findByEmail(seed.email);
+        if (existing) {
+            existing.username = seed.username;
+            existing.password = hashed;
+            existing.role = seed.role;
+            await existing.save();
+            return;
+        }
+
+        await this.signupModel.create({
+            username: seed.username,
+            email: seed.email,
+            password: hashed,
+            role: seed.role,
         });
     }
 
