@@ -69,10 +69,16 @@ export class AuthenticationService implements OnModuleInit {
         const hashed = await bcrypt.hash(seed.password, 10);
         const existing = await this.findByEmail(seed.email);
         if (existing) {
-            existing.username = seed.username;
-            existing.password = hashed;
-            existing.role = seed.role;
-            await existing.save();
+            await this.signupModel.updateOne(
+                { email: seed.email },
+                {
+                    $set: {
+                        username: seed.username,
+                        password: hashed,
+                        role: seed.role,
+                    },
+                },
+            );
             return;
         }
 
