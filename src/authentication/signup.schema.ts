@@ -12,6 +12,8 @@ export class Signup {
     password: string;
     @Prop({ required: false, default: 'user' })
     role: string;
+    @Prop({ required: false })
+    profileImage?: string;
     @Prop({
         required: false,
         type: {

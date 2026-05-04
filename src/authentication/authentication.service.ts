@@ -129,6 +129,13 @@ export class AuthenticationService implements OnModuleInit {
         return user.save();
     }
 
+    async updateProfileImageById(userId: string, profileImage: string) {
+        const user = await this.signupModel.findById(userId).exec();
+        if (!user) throw new NotFoundException('User not found');
+        user.profileImage = profileImage;
+        return user.save();
+    }
+
     /**
      * Update a user's last known location (latitude, longitude).
      * We store it on the Signup document in `location` for quick retrieval.
